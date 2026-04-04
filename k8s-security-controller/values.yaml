@@ -1,0 +1,58 @@
+# Default values for k8s-security-controller
+
+# Allow overriding the chart name
+
+controller:
+  image:
+    repository: k8s-security-controller
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  securityProfiles:
+    rceProtection: true
+    miningProtection: true
+    privilegeEscalation: true
+    cronProtection: true
+    secretsProtection: true
+
+falco:
+  enabled: true
+  image:
+    repository: falcosecurity/falco
+    tag: latest
+
+monitoring:
+  enabled: true
+  logLevel: info
+
+autoResponse:
+  enabled: true
+  actions:
+    terminateProcess: true
+    isolateNetwork: true
+    killContainer: false
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

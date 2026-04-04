@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "k8s-security-controller.fullname" . }}-agent
+  labels:
+    {{- include "k8s-security-controller.labels" . | nindent 4 }}
+    component: agent
+spec:
+  selector:
+    matchLabels:
+      {{- include "k8s-security-controller.selectorLabels" . | nindent 6 }}
+      component: agent
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-security-controller.selectorLabels" . | nindent 8 }}
+        component: agent
+    spec:
+      serviceAccountName: {{ include "k8s-security-controller.fullname" . }}
+      hostPID: true
+      hostNetwork: true
+      containers:
+        - name: security-agent
+          image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}"
+          imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+          securityContext:
+            privileged: true
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: AGENT_MODE
+              value: "monitor"
+          volumeMounts:
+            - name: var-run
+              mountPath: /var/run
+            - name: var-lib
+              mountPath: /var/lib
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+      volumes:
+        - name: var-run
+          hostPath:
+            path: /var/run
+        - name: var-lib
+          hostPath:
+            path: /var/lib
+        - name: proc
+          hostPath:
+            path: /proc
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
