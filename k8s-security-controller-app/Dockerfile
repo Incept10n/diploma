@@ -1,4 +1,4 @@
-FROM golang:1.26-alpine AS builder
+FROM golang:1.19-alpine AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,12 @@ WORKDIR /root/
 
 COPY --from=builder /app/k8s-security-controller .
 
+# Создаем директорию для конфигурации
+RUN mkdir -p /config
+
 # Копируем конфигурационные файлы
 COPY config/ /config/
+
+EXPOSE 8080
 
 CMD ["./k8s-security-controller"]

@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,6 +15,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
+
+var cronController *CronController
 
 func main() {
 	var kubeconfig string
@@ -42,7 +46,10 @@ func main() {
 	}
 
 	// Создаем контроллер cron
-	cronController := NewCronController(clientset, securityConfig)
+	cronController = NewCronController(clientset, config, securityConfig)
+
+	// Запускаем HTTP сервер для API управления
+	go startHTTPServer()
 
 	// Запускаем контроллер
 	ctx, cancel := context.WithCancel(context.Background())
@@ -72,12 +79,6 @@ func buildConfig(masterUrl, kubeconfigPath string) (*rest.Config, error) {
 		return clientcmd.BuildConfigFromFlags(masterUrl, kubeconfigPath)
 	}
 	return rest.InClusterConfig()
-}
-
-func loadSecurityConfig() (*SecurityConfig, error) {
-	// Пока возвращаем дефолтную конфигурацию
-	// Позже реализуем загрузку из ConfigMap или файла
-	return getDefaultSecurityConfig(), nil
 }
 
 func getDefaultSecurityConfig() *SecurityConfig {
@@ -110,11 +111,67 @@ func getDefaultSecurityConfig() *SecurityConfig {
 				"/usr/bin/apt",
 				"/usr/bin/yum",
 				"/usr/bin/systemctl",
-				// Добавь сюда команды, которые должны быть разрешены
+				"/usr/bin/logrotate",
 			},
 		},
 		Logging: LoggingConfig{
 			Level: "info",
 		},
+	}
+}
+
+// HTTP handlers для API управления
+func startHTTPServer() {
+	http.HandleFunc("/api/allowed-commands", handleAllowedCommands)
+	http.HandleFunc("/api/suspicious-patterns", handleSuspiciousPatterns)
+	http.HandleFunc("/api/config", handleConfig)
+
+	log.Println("Starting HTTP server on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func handleAllowedCommands(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cronController.config.Cron.AllowedCommands)
+	case "POST":
+		var command string
+		if err := json.NewDecoder(r.Body).Decode(&command); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		cronController.AddAllowedCommand(command)
+		w.WriteHeader(http.StatusOK)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func handleSuspiciousPatterns(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cronController.config.Cron.SuspiciousPatterns)
+	case "POST":
+		var pattern string
+		if err := json.NewDecoder(r.Body).Decode(&pattern); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		cronController.AddSuspiciousPattern(pattern)
+		w.WriteHeader(http.StatusOK)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func handleConfig(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cronController.config)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
