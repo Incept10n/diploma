@@ -1,0 +1,30 @@
+cron:
+  enabled: true
+  monitoringInterval: 30s
+  monitoredPaths:
+    - "/etc/crontab"
+    - "/etc/cron.d/"
+    - "/var/spool/cron/crontabs/"
+    - "/etc/cron.hourly/"
+    - "/etc/cron.daily/"
+    - "/etc/cron.weekly/"
+    - "/etc/cron.monthly/"
+  suspiciousPatterns:
+    - "* * * * * *"
+    - "*/1 *"
+    - "sh -c"
+    - "bash -c"
+    - "wget"
+    - "curl"
+    - "nc "
+    - "ncat"
+    - "/tmp/"
+    - "/dev/shm/"
+  allowedCommands:
+    - "/usr/bin/apt"
+    - "/usr/bin/yum"
+    - "/usr/bin/systemctl"
+    - "/usr/bin/logrotate"
+
+logging:
+  level: "info"

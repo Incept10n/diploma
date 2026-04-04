@@ -4,9 +4,9 @@
 
 controller:
   image:
-    repository: k8s-security-controller
+    repository: incept1on999/k8s-security-controller
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   
   resources:
     limits:
@@ -56,3 +56,27 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+cron:
+  enabled: true
+  monitoringInterval: 30s
+  monitoredPaths:
+    - "/etc/crontab"
+    - "/etc/cron.d/"
+    - "/var/spool/cron/crontabs/"
+  suspiciousPatterns:
+    - "* * * * * *"
+    - "*/1 *"
+    - "sh -c"
+    - "bash -c"
+    - "wget"
+    - "curl"
+    - "nc "
+    - "ncat"
+    - "/tmp/"
+    - "/dev/shm/"
+  allowedCommands:
+    - "/usr/bin/apt"
+    - "/usr/bin/yum"
+    - "/usr/bin/systemctl"
+    - "/usr/bin/logrotate"

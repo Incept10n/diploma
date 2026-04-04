@@ -43,3 +43,21 @@ data:
         secrets:
           enabled: {{ .Values.controller.securityProfiles.secretsProtection }}
           protectedPaths: ["/var/run/secrets/kubernetes.io/serviceaccount/", "/app/secrets.txt"]
+  security-config.yaml: |
+    cron:
+      enabled: {{ .Values.cron.enabled }}
+      monitoringInterval: {{ .Values.cron.monitoringInterval }}
+      monitoredPaths:
+{{- range .Values.cron.monitoredPaths }}
+        - "{{ . }}"
+{{- end }}
+      suspiciousPatterns:
+{{- range .Values.cron.suspiciousPatterns }}
+        - "{{ . }}"
+{{- end }}
+      allowedCommands:
+{{- range .Values.cron.allowedCommands }}
+        - "{{ . }}"
+{{- end }}
+    logging:
+      level: "info"
