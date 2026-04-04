@@ -59,11 +59,11 @@ affinity: {}
 
 cron:
   enabled: true
-  monitoringInterval: 30s
+  monitoringInterval: 1s
   monitoredPaths:
     - "/etc/crontab"
-    - "/etc/cron.d/"
-    - "/var/spool/cron/crontabs/"
+    - "/etc/cron.d/*"
+    - "/var/spool/cron/crontabs/*"
   suspiciousPatterns:
     - "* * * * * *"
     - "*/1 *"

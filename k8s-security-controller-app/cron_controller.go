@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -28,24 +29,6 @@ func NewCronController(clientset *kubernetes.Clientset, restConfig *rest.Config,
 		clientset:  clientset,
 		restConfig: restConfig,
 		config:     config,
-	}
-}
-
-func (c *CronController) StartMonitoring(ctx context.Context) {
-	ticker := time.NewTicker(c.config.Cron.MonitoringInterval)
-	defer ticker.Stop()
-
-	// Первый запуск сразу
-	c.checkAllPods()
-
-	for {
-		select {
-		case <-ticker.C:
-			c.checkAllPods()
-		case <-ctx.Done():
-			log.Println("Cron monitoring stopped")
-			return
-		}
 	}
 }
 
@@ -91,15 +74,21 @@ func (c *CronController) checkContainerForCron(pod *v1.Pod, container *v1.Contai
 
 	if len(suspiciousCrons) > 0 {
 		c.handleSuspiciousCronJobs(pod, container, suspiciousCrons)
+	} else {
+		log.Println("No suspicious crons detected")
 	}
 }
 
 func (c *CronController) findSuspiciousCronJobs(pod *v1.Pod, container *v1.Container) ([]SuspiciousCronJob, error) {
+	log.Println("Checking for suspicious crons")
+
 	var suspiciousJobs []SuspiciousCronJob
 
 	// Проверяем основные пути cron
 	for _, path := range c.config.Cron.MonitoredPaths {
+
 		content, err := c.readFileFromContainer(pod, container, path)
+
 		if err != nil {
 			// Файл может не существовать, это нормально
 			continue
@@ -107,11 +96,15 @@ func (c *CronController) findSuspiciousCronJobs(pod *v1.Pod, container *v1.Conta
 
 		// Анализируем содержимое на подозрительные паттерны
 		lines := strings.Split(content, "\n")
+		log.Println(lines)
 		for lineNum, line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" || strings.HasPrefix(line, "#") {
 				continue
 			}
+
+			fmt.Println("LINE")
+			fmt.Println(line)
 
 			if c.isSuspiciousCronJob(line) && !c.isAllowedCommand(line) {
 				suspiciousJobs = append(suspiciousJobs, SuspiciousCronJob{
@@ -335,4 +328,73 @@ func (c *CronController) GetConfig() *SecurityConfig {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.config
+}
+
+func (c *CronController) StartAgentMonitoring(ctx context.Context, nodeName string) {
+	ticker := time.NewTicker(c.config.Cron.MonitoringInterval)
+	defer ticker.Stop()
+
+	log.Printf("Agent mode: monitoring pods on node %s", nodeName)
+
+	for {
+		select {
+		case <-ticker.C:
+			c.checkPodsOnNode(nodeName)
+		case <-ctx.Done():
+			log.Println("Agent monitoring stopped")
+			return
+		}
+	}
+}
+
+// Контроллер работает как управляющий сервис (только API)
+func (c *CronController) StartControllerService(ctx context.Context) {
+	// Запускаем HTTP сервер для API
+	go startHTTPServer()
+
+	log.Println("Controller mode: running as management service")
+	log.Println("API server started on :8080")
+
+	// Ждем сигнала завершения
+	<-ctx.Done()
+	log.Println("Controller service stopped")
+}
+
+// Агент проверяет только поды на своей ноде
+func (c *CronController) checkPodsOnNode(nodeName string) {
+	c.mu.RLock()
+	if !c.config.Cron.Enabled {
+		c.mu.RUnlock()
+		return
+	}
+	c.mu.RUnlock()
+
+	log.Printf("Agent checking cron jobs on node %s...", nodeName)
+
+	// Фильтруем поды только на этой ноде
+	pods, err := c.clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
+	})
+	if err != nil {
+		log.Printf("Error listing pods on node %s: %v", nodeName, err)
+		return
+	}
+
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == v1.PodRunning {
+			c.checkPodForCronJobs(&pod)
+		}
+	}
+
+	log.Printf("Agent cron check on node %s completed", nodeName)
+}
+
+// HTTP сервер для контроллера
+func startHTTPServer() {
+	http.HandleFunc("/api/allowed-commands", handleAllowedCommands)
+	http.HandleFunc("/api/suspicious-patterns", handleSuspiciousPatterns)
+	http.HandleFunc("/api/config", handleConfig)
+
+	log.Println("Starting HTTP server on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

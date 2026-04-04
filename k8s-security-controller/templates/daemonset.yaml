@@ -23,6 +23,8 @@ spec:
         - name: security-agent
           image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}"
           imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+          args:
+            - "--mode=agent"
           securityContext:
             privileged: true
           env:
@@ -40,6 +42,11 @@ spec:
             - name: proc
               mountPath: /host/proc
               readOnly: true
+{{- if .Values.cron.enabled }}
+            - name: config-volume-cron
+              mountPath: /config/security-config-cron.yaml
+              subPath: security-config-cron.yaml
+{{- end }}
           resources:
             limits:
               cpu: 200m
@@ -57,6 +64,11 @@ spec:
         - name: proc
           hostPath:
             path: /proc
+{{- if .Values.cron.enabled }}
+        - name: config-volume-cron
+          configMap:
+            name: {{ include "k8s-security-controller.fullname" . }}-config
+{{- end }}
       tolerations:
         - effect: NoSchedule
           operator: Exists

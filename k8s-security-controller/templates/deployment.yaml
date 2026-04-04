@@ -27,6 +27,8 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}"
           imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+          args:
+            - "--mode=controller"
           ports:
             - name: http
               containerPort: 8080

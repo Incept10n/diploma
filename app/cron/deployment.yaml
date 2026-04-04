@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: random-logger-cron
+  labels:
+    app: random-logger-cron
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: random-logger-cron
+  template:
+    metadata:
+      labels:
+        app: random-logger-cron
+    spec:
+      containers:
+      - name: random-logger-cron
+        image: incept1on999/k8s-security-controller:cron
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"

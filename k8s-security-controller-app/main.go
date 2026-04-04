@@ -21,10 +21,14 @@ var cronController *CronController
 func main() {
 	var kubeconfig string
 	var master string
+	var mode string
 
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	flag.StringVar(&master, "master", "", "master url")
+	flag.StringVar(&mode, "mode", "controller", "running mode: controller or agent")
 	flag.Parse()
+
+	log.Printf("Starting in %s mode", mode)
 
 	// Создаем конфигурацию для подключения к Kubernetes
 	config, err := buildConfig(master, kubeconfig)
@@ -39,6 +43,7 @@ func main() {
 	}
 
 	// Загружаем конфигурацию безопасности
+	log.Println("Next step - loading the security config")
 	securityConfig, err := loadSecurityConfig()
 	if err != nil {
 		log.Printf("Warning: Could not load security config, using defaults: %v", err)
@@ -47,9 +52,6 @@ func main() {
 
 	// Создаем контроллер cron
 	cronController = NewCronController(clientset, config, securityConfig)
-
-	// Запускаем HTTP сервер для API управления
-	go startHTTPServer()
 
 	// Запускаем контроллер
 	ctx, cancel := context.WithCancel(context.Background())
@@ -67,8 +69,19 @@ func main() {
 	log.Println("Starting Kubernetes Security Controller - Cron Monitor")
 	log.Printf("Monitoring interval: %v", securityConfig.Cron.MonitoringInterval)
 
-	// Запускаем мониторинг
-	cronController.StartMonitoring(ctx)
+	if mode == "agent" {
+		// Агент мониторит только поды на своей ноде
+		nodeName := os.Getenv("NODE_NAME")
+		if nodeName == "" {
+			log.Fatal("NODE_NAME environment variable is required for agent mode")
+		}
+		log.Printf("Starting agent mode for node: %s", nodeName)
+		cronController.StartAgentMonitoring(ctx, nodeName)
+	} else {
+		// Контроллер работает как управляющий сервис
+		log.Println("Starting controller mode")
+		cronController.StartControllerService(ctx)
+	}
 }
 
 func buildConfig(masterUrl, kubeconfigPath string) (*rest.Config, error) {
@@ -118,16 +131,6 @@ func getDefaultSecurityConfig() *SecurityConfig {
 			Level: "info",
 		},
 	}
-}
-
-// HTTP handlers для API управления
-func startHTTPServer() {
-	http.HandleFunc("/api/allowed-commands", handleAllowedCommands)
-	http.HandleFunc("/api/suspicious-patterns", handleSuspiciousPatterns)
-	http.HandleFunc("/api/config", handleConfig)
-
-	log.Println("Starting HTTP server on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func handleAllowedCommands(w http.ResponseWriter, r *http.Request) {

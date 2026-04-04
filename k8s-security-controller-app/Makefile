@@ -7,10 +7,10 @@ test:
 	go test -v ./...
 
 docker-build:
-	docker build -t k8s-security-controller:latest .
+	docker build -t incept1on999/k8s-security-controller:latest . --no-cache
 
 docker-push:
-	docker push incept1on999/k8s-security-controller:tagname
+	docker push incept1on999/k8s-security-controller:latest
 
 clean:
 	rm -rf bin/

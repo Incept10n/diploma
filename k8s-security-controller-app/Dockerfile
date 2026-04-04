@@ -17,12 +17,9 @@ WORKDIR /root/
 
 COPY --from=builder /app/k8s-security-controller .
 
-# Создаем директорию для конфигурации
-RUN mkdir -p /config
-
 # Копируем конфигурационные файлы
-COPY config/ /config/
+#COPY config/ /config/
 
-EXPOSE 8080
-
-CMD ["./k8s-security-controller"]
+# Явно указываем точку входа и аргументы по умолчанию
+ENTRYPOINT ["./k8s-security-controller"]
+CMD ["--mode=controller"]
