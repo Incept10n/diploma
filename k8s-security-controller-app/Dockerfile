@@ -2,6 +2,10 @@ FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
+ENV GOPROXY=https://goproxy.io,https://proxy.golang.org,direct
+ENV GOSUMDB=off
+ENV GO111MODULE=on
+
 COPY go.mod go.sum ./
 RUN go mod download
 
@@ -17,9 +21,5 @@ WORKDIR /root/
 
 COPY --from=builder /app/k8s-security-controller .
 
-# Копируем конфигурационные файлы
-#COPY config/ /config/
-
-# Явно указываем точку входа и аргументы по умолчанию
 ENTRYPOINT ["./k8s-security-controller"]
 CMD ["--mode=controller"]

@@ -1,4 +1,4 @@
-.PHONY: build test docker-build clean
+.PHONY: build test docker-build clean docker-rebuild
 
 build:
 	go build -o bin/k8s-security-controller .
@@ -11,6 +11,10 @@ docker-build:
 
 docker-push:
 	docker push incept1on999/k8s-security-controller:latest
+
+docker-rebuild:
+	$(MAKE) docker-build
+	$(MAKE) docker-push
 
 clean:
 	rm -rf bin/

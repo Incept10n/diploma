@@ -87,34 +87,39 @@ func (c *CronController) findSuspiciousCronJobs(pod *v1.Pod, container *v1.Conta
 	// Проверяем основные пути cron
 	for _, path := range c.config.Cron.MonitoredPaths {
 
-		content, err := c.readFileFromContainer(pod, container, path)
+		cmdToListFiles := []string{"/bin/sh", "-c", "ls -1 " + path + " | xargs realpath"}
+		files, _ := c.executeCommandInContainer(pod, container, cmdToListFiles)
+		linesFromStdout := strings.Split(files, "\n")
 
-		if err != nil {
-			// Файл может не существовать, это нормально
-			continue
-		}
+		for _, file := range linesFromStdout {
 
-		// Анализируем содержимое на подозрительные паттерны
-		lines := strings.Split(content, "\n")
-		log.Println(lines)
-		for lineNum, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" || strings.HasPrefix(line, "#") {
+			content, err := c.readFileFromContainer(pod, container, file)
+
+			if err != nil {
+				// Файл может не существовать, это нормально
 				continue
 			}
 
-			fmt.Println("LINE")
-			fmt.Println(line)
+			// Анализируем содержимое на подозрительные паттерны
+			lines := strings.Split(content, "\n")
+			for lineNum, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
 
-			if c.isSuspiciousCronJob(line) && !c.isAllowedCommand(line) {
-				suspiciousJobs = append(suspiciousJobs, SuspiciousCronJob{
-					Path:     path,
-					Line:     line,
-					LineNum:  lineNum + 1,
-					FullPath: fmt.Sprintf("%s:%d", path, lineNum+1),
-				})
+				if c.isSuspiciousCronJob(line) && !c.isAllowedCommand(line) {
+					suspiciousJobs = append(suspiciousJobs, SuspiciousCronJob{
+						Path:     file,
+						Line:     line,
+						LineNum:  lineNum + 1,
+						FullPath: fmt.Sprintf("%s:%d", file, lineNum+1),
+					})
+				}
 			}
+
 		}
+
 	}
 
 	return suspiciousJobs, nil
@@ -197,7 +202,7 @@ func (c *CronController) isMaliciousUsage(jobLine, allowedCommand string) bool {
 }
 
 func (c *CronController) readFileFromContainer(pod *v1.Pod, container *v1.Container, filePath string) (string, error) {
-	cmd := []string{"cat", filePath}
+	cmd := []string{"/bin/sh", "-c", "cat " + filePath}
 	return c.executeCommandInContainer(pod, container, cmd)
 }
 
@@ -218,11 +223,15 @@ func (c *CronController) executeCommandInContainer(pod *v1.Pod, container *v1.Co
 
 	exec, err := remotecommand.NewSPDYExecutor(c.restConfig, "POST", req.URL())
 	if err != nil {
+		log.Printf("Error creating executor: %s", err.Error())
 		return "", err
 	}
 
 	var stdout, stderr strings.Builder
-	err = exec.Stream(remotecommand.StreamOptions{
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel() // Важно: предотвращает утечку ресурсов
+
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: &stdout,
 		Stderr: &stderr,
 		Tty:    false,
@@ -231,6 +240,8 @@ func (c *CronController) executeCommandInContainer(pod *v1.Pod, container *v1.Co
 	if err != nil {
 		return "", fmt.Errorf("command failed: %v, stderr: %s", err, stderr.String())
 	}
+
+	log.Printf("Command executed successfully. Output length: %d bytes", stdout.Len())
 
 	return stdout.String(), nil
 }

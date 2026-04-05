@@ -1,7 +1,7 @@
 FROM python:3.15-rc-slim
 
 # Установка cron
-RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y cron vim && rm -rf /var/lib/apt/lists/*
 
 # Создание директории для приложения
 WORKDIR /app
