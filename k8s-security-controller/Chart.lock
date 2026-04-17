@@ -1,0 +1,12 @@
+dependencies:
+- name: falco
+  repository: https://falcosecurity.github.io/charts
+  version: 8.0.2
+- name: kube-bench
+  repository: oci://ghcr.io/deliveryhero/helm-charts
+  version: 0.1.16
+- name: sysdig-deploy
+  repository: https://charts.sysdig.com
+  version: 1.109.6
+digest: sha256:6db871e3cfacae517a4528d74059ee3d7c58776891ef5082e5e90600692b0661
+generated: "2026-04-17T14:27:09.80806007+03:00"

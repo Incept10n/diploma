@@ -1,5 +1,5 @@
 cron:
-  enabled: true
+  enabled: false
   monitoringInterval: 30s
   monitoredPaths:
     - "/etc/crontab"

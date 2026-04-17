@@ -40,6 +40,7 @@ func loadSecurityConfig() (*SecurityConfig, error) {
 	}
 
 	// Если ConfigMap недоступен, используем дефолтную конфигурацию
-	log.Println("Loading default security-config.yaml")
+	log.Println("Cron monitoring is disabled")
+	// log.Println("Loading default security-config.yaml")
 	return getDefaultSecurityConfig(), nil
 }

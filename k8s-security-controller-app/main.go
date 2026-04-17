@@ -51,7 +51,9 @@ func main() {
 	}
 
 	// Создаем контроллер cron
-	cronController = NewCronController(clientset, config, securityConfig)
+	if securityConfig.Cron.Enabled {
+		cronController = NewCronController(clientset, config, securityConfig)
+	}
 
 	// Запускаем контроллер
 	ctx, cancel := context.WithCancel(context.Background())
@@ -76,11 +78,15 @@ func main() {
 			log.Fatal("NODE_NAME environment variable is required for agent mode")
 		}
 		log.Printf("Starting agent mode for node: %s", nodeName)
-		cronController.StartAgentMonitoring(ctx, nodeName)
+		if securityConfig.Cron.Enabled {
+			cronController.StartAgentMonitoring(ctx, nodeName)
+		}
 	} else {
 		// Контроллер работает как управляющий сервис
 		log.Println("Starting controller mode")
-		cronController.StartControllerService(ctx)
+		if securityConfig.Cron.Enabled {
+			cronController.StartControllerService(ctx)
+		}
 	}
 }
 

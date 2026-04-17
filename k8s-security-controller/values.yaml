@@ -1,7 +1,5 @@
 # Default values for k8s-security-controller
 
-# Allow overriding the chart name
-
 controller:
   image:
     repository: incept1on999/k8s-security-controller
@@ -23,11 +21,70 @@ controller:
     cronProtection: true
     secretsProtection: true
 
+# Falco integration
 falco:
+  enabled: false
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  securityContext:
+    privileged: true
+  podSecurityContext:
+    privileged: true
+  customRules: {}
+
+# Sysdig integration
+sysdig:
   enabled: true
-  image:
-    repository: falcosecurity/falco
-    tag: latest
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1024Mi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+  secure:
+    enabled: false
+  sysdig:
+    accessKey: ""
+  securityContext:
+    privileged: true
+  nodeAnalyzer:
+    deploy: false
+  admissionController:
+    enabled: false
+  clusterShield:
+    enabled: false
+  daemonset:
+    enabled: true
+  ebpf:
+    enabled: true
+  k8s:
+    enabled: true
+  logLevel: info
+  serviceAccount:
+    create: true
+
+# Kube-bench integration
+kube-bench:
+  enabled: false
+  cronjob:
+    schedule: "* * * * *"
+  provider: generic
+  target: master
+  benchmarkVersion: "cis-1.6"
+  jsonLogging: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
 
 monitoring:
   enabled: true

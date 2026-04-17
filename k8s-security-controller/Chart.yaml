@@ -4,3 +4,19 @@ description: Kubernetes Security Controller for Runtime Monitoring
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
+
+dependencies:
+  - name: falco
+    version: "8.0.2"
+    repository: "https://falcosecurity.github.io/charts"
+    condition: falco.enabled
+
+  - name: kube-bench
+    version: "0.1.16"
+    repository: "oci://ghcr.io/deliveryhero/helm-charts"
+    condition: kube-bench.enabled
+  
+  - name: sysdig-deploy
+    version: "1.109.6"
+    repository: "https://charts.sysdig.com"
+    condition: sysdig.enabled
