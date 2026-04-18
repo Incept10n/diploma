@@ -69,7 +69,7 @@ func NewFileMonitor(clientset *kubernetes.Clientset, restConfig *rest.Config, co
 }
 
 func (fm *FileMonitor) StartAgentMonitoring(ctx context.Context, nodeName string) {
-	// Запоминаем время старта агента
+	// Начальное время
 	fm.startTime = time.Now()
 	log.Printf("File monitor agent started at: %s", fm.startTime.Format("2006-01-02 15:04:05"))
 
@@ -81,6 +81,8 @@ func (fm *FileMonitor) StartAgentMonitoring(ctx context.Context, nodeName string
 	for {
 		select {
 		case <-ticker.C:
+			fm.startTime = time.Now()
+			log.Printf("Starting file check at: %s", fm.startTime.Format("2006-01-02 15:04:05"))
 			fm.checkPodsOnNode(nodeName)
 		case <-ctx.Done():
 			log.Println("File monitor agent stopped")
