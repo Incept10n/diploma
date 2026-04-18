@@ -42,11 +42,9 @@ spec:
             - name: proc
               mountPath: /host/proc
               readOnly: true
-{{- if .Values.cron.enabled }}
-            - name: config-volume-cron
-              mountPath: /config/security-config-cron.yaml
-              subPath: security-config-cron.yaml
-{{- end }}
+            - name: config-volume
+              mountPath: /config/security-config.yaml
+              subPath: security-config.yaml
           resources:
             limits:
               cpu: 200m
@@ -64,11 +62,9 @@ spec:
         - name: proc
           hostPath:
             path: /proc
-{{- if .Values.cron.enabled }}
-        - name: config-volume-cron
+        - name: config-volume
           configMap:
             name: {{ include "k8s-security-controller.fullname" . }}-config
-{{- end }}
       tolerations:
         - effect: NoSchedule
           operator: Exists

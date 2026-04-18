@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
-	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -17,6 +16,7 @@ import (
 )
 
 var cronController *CronController
+var fileMonitor *FileMonitor
 
 func main() {
 	var kubeconfig string
@@ -47,12 +47,16 @@ func main() {
 	securityConfig, err := loadSecurityConfig()
 	if err != nil {
 		log.Printf("Warning: Could not load security config, using defaults: %v", err)
-		securityConfig = getDefaultSecurityConfig()
+		log.Fatal(err)
 	}
 
 	// Создаем контроллер cron
 	if securityConfig.Cron.Enabled {
 		cronController = NewCronController(clientset, config, securityConfig)
+	}
+
+	if securityConfig.FileMonitoring.Enabled || securityConfig.Secrets.Enabled {
+		fileMonitor = NewFileMonitor(clientset, config, securityConfig)
 	}
 
 	// Запускаем контроллер
@@ -78,15 +82,31 @@ func main() {
 			log.Fatal("NODE_NAME environment variable is required for agent mode")
 		}
 		log.Printf("Starting agent mode for node: %s", nodeName)
+
+		var wg sync.WaitGroup
+
 		if securityConfig.Cron.Enabled {
-			cronController.StartAgentMonitoring(ctx, nodeName)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cronController.StartAgentMonitoring(ctx, nodeName)
+			}()
 		}
+		// if securityConfig.Cron.Enabled {
+		// 	cronController.StartAgentMonitoring(ctx, nodeName)
+		// }
+		if securityConfig.FileMonitoring.Enabled || securityConfig.Secrets.Enabled {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				fileMonitor.StartAgentMonitoring(ctx, nodeName)
+			}()
+		}
+
+		wg.Wait()
 	} else {
-		// Контроллер работает как управляющий сервис
-		log.Println("Starting controller mode")
-		if securityConfig.Cron.Enabled {
-			cronController.StartControllerService(ctx)
-		}
+		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
 }
 
@@ -98,89 +118,4 @@ func buildConfig(masterUrl, kubeconfigPath string) (*rest.Config, error) {
 		return clientcmd.BuildConfigFromFlags(masterUrl, kubeconfigPath)
 	}
 	return rest.InClusterConfig()
-}
-
-func getDefaultSecurityConfig() *SecurityConfig {
-	return &SecurityConfig{
-		Cron: CronConfig{
-			Enabled:            true,
-			MonitoringInterval: 30 * time.Second,
-			MonitoredPaths: []string{
-				"/etc/crontab",
-				"/etc/cron.d/",
-				"/var/spool/cron/crontabs/",
-				"/etc/cron.hourly/",
-				"/etc/cron.daily/",
-				"/etc/cron.weekly/",
-				"/etc/cron.monthly/",
-			},
-			SuspiciousPatterns: []string{
-				"* * * * * *", // слишком частое выполнение
-				"*/1 *",       // каждую минуту
-				"sh -c",       // выполнение shell-команд
-				"bash -c",     // выполнение bash-команд
-				"wget",        // скачивание файлов
-				"curl",        // HTTP-запросы
-				"nc ",         // netcat
-				"ncat",        // ncat
-				"/tmp/",       // использование временных директорий
-				"/dev/shm/",   // shared memory
-			},
-			AllowedCommands: []string{
-				"/usr/bin/apt",
-				"/usr/bin/yum",
-				"/usr/bin/systemctl",
-				"/usr/bin/logrotate",
-			},
-		},
-		Logging: LoggingConfig{
-			Level: "info",
-		},
-	}
-}
-
-func handleAllowedCommands(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(cronController.config.Cron.AllowedCommands)
-	case "POST":
-		var command string
-		if err := json.NewDecoder(r.Body).Decode(&command); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		cronController.AddAllowedCommand(command)
-		w.WriteHeader(http.StatusOK)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
-func handleSuspiciousPatterns(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(cronController.config.Cron.SuspiciousPatterns)
-	case "POST":
-		var pattern string
-		if err := json.NewDecoder(r.Body).Decode(&pattern); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		cronController.AddSuspiciousPattern(pattern)
-		w.WriteHeader(http.StatusOK)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
-func handleConfig(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(cronController.config)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
 }

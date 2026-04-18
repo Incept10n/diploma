@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -342,6 +341,7 @@ func (c *CronController) GetConfig() *SecurityConfig {
 }
 
 func (c *CronController) StartAgentMonitoring(ctx context.Context, nodeName string) {
+
 	ticker := time.NewTicker(c.config.Cron.MonitoringInterval)
 	defer ticker.Stop()
 
@@ -356,19 +356,6 @@ func (c *CronController) StartAgentMonitoring(ctx context.Context, nodeName stri
 			return
 		}
 	}
-}
-
-// Контроллер работает как управляющий сервис (только API)
-func (c *CronController) StartControllerService(ctx context.Context) {
-	// Запускаем HTTP сервер для API
-	go startHTTPServer()
-
-	log.Println("Controller mode: running as management service")
-	log.Println("API server started on :8080")
-
-	// Ждем сигнала завершения
-	<-ctx.Done()
-	log.Println("Controller service stopped")
 }
 
 // Агент проверяет только поды на своей ноде
@@ -398,14 +385,4 @@ func (c *CronController) checkPodsOnNode(nodeName string) {
 	}
 
 	log.Printf("Agent cron check on node %s completed", nodeName)
-}
-
-// HTTP сервер для контроллера
-func startHTTPServer() {
-	http.HandleFunc("/api/allowed-commands", handleAllowedCommands)
-	http.HandleFunc("/api/suspicious-patterns", handleSuspiciousPatterns)
-	http.HandleFunc("/api/config", handleConfig)
-
-	log.Println("Starting HTTP server on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
 }

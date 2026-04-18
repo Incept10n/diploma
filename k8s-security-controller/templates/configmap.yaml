@@ -5,46 +5,7 @@ metadata:
   labels:
     {{- include "k8s-security-controller.labels" . | nindent 4 }}
 data:
-  security-profiles.yaml: |
-    apiVersion: security.k8s-controller/v1
-    kind: SecurityConfiguration
-    metadata:
-      name: default-security-profile
-    spec:
-      monitoring:
-        enabled: {{ .Values.monitoring.enabled }}
-        logLevel: {{ .Values.monitoring.logLevel }}
-      
-      autoResponse:
-        enabled: {{ .Values.autoResponse.enabled }}
-        actions:
-          terminateProcess: {{ .Values.autoResponse.actions.terminateProcess }}
-          isolateNetwork: {{ .Values.autoResponse.actions.isolateNetwork }}
-          killContainer: {{ .Values.autoResponse.actions.killContainer }}
-      
-      protections:
-        rce:
-          enabled: {{ .Values.controller.securityProfiles.rceProtection }}
-          suspiciousCommands: ["sh", "bash", "python", "perl", "wget", "curl"]
-        
-        mining:
-          enabled: {{ .Values.controller.securityProfiles.miningProtection }}
-          cpuThreshold: "80%"
-          suspiciousProcesses: ["xmrig", "cpuminer"]
-        
-        privilegeEscalation:
-          enabled: {{ .Values.controller.securityProfiles.privilegeEscalation }}
-          blockedSyscalls: ["mount", "umount2", "setuid", "setgid"]
-        
-        cron:
-          enabled: {{ .Values.controller.securityProfiles.cronProtection }}
-          monitoredPaths: ["/etc/crontab", "/etc/cron.d/", "/var/spool/cron/crontabs/"]
-        
-        secrets:
-          enabled: {{ .Values.controller.securityProfiles.secretsProtection }}
-          protectedPaths: ["/var/run/secrets/kubernetes.io/serviceaccount/", "/app/secrets.txt"]
-
-  security-config-cron.yaml: |
+  security-config.yaml: |
     cron:
       enabled: {{ .Values.cron.enabled }}
       monitoringInterval: {{ .Values.cron.monitoringInterval }}
@@ -62,3 +23,31 @@ data:
 {{- end }}
     logging:
       level: "info"
+    # File monitor confg
+    fileMonitoring:
+      enabled: {{ .Values.fileMonitoring.enabled }}
+      monitoringInterval: {{ .Values.fileMonitoring.monitoringInterval }}
+      forbiddenExtensions:
+{{- range .Values.fileMonitoring.forbiddenExtensions }}
+        - "{{ . }}"
+{{- end }}
+      protectedPaths:
+{{- range .Values.fileMonitoring.protectedPaths }}
+        - "{{ . }}"
+{{- end }}
+      allowedWritePaths:
+{{- range .Values.fileMonitoring.allowedWritePaths }}
+        - "{{ . }}"
+{{- end }}
+      maxFileSize: {{ .Values.fileMonitoring.maxFileSize }}
+    # Secret monitor confg
+    secrets:
+      enabled: {{ .Values.secrets.enabled }}
+      protectedPaths:
+{{- range .Values.secrets.protectedPaths }}
+        - "{{ . }}"
+{{- end }}
+      suspiciousAccessPatterns:
+{{- range .Values.secrets.suspiciousAccessPatterns }}
+        - "{{ . }}"
+{{- end }}

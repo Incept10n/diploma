@@ -3,9 +3,6 @@
 build:
 	go build -o bin/k8s-security-controller .
 
-test:
-	go test -v ./...
-
 docker-build:
 	docker build -t incept1on999/k8s-security-controller:latest . --no-cache
 

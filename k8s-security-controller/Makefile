@@ -8,7 +8,8 @@ repos:
 deps: repos
 	helm dependency update
 
-install: deps
+#install: deps
+install:
 	helm install k8s-security-controller . --namespace si --create-namespace
 
 upgrade: deps

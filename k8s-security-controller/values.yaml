@@ -39,7 +39,7 @@ falco:
 
 # Sysdig integration
 sysdig:
-  enabled: true
+  enabled: false
   resources:
     limits:
       cpu: 500m
@@ -115,7 +115,7 @@ tolerations: []
 affinity: {}
 
 cron:
-  enabled: true
+  enabled: false
   monitoringInterval: 10s
   monitoredPaths:
     - "/etc/crontab"
@@ -137,3 +137,50 @@ cron:
     - "/usr/bin/yum"
     - "/usr/bin/systemctl"
     - "/usr/bin/logrotate"
+
+fileMonitoring:
+  enabled: true
+  monitoringInterval: 10s
+  forbiddenExtensions:
+    # - ".pl"
+    - ".sh"
+    # - ".php"
+    # - ".jsp"
+    # - ".asp"
+    # - ".exe"
+    # - ".dll"
+    # - ".so"
+    # - ".tmp"
+    # - ".bak"
+  protectedPaths:
+    - "/app"
+    # - "/var/www"
+    # - "/home"
+    # - "/opt"
+  allowedWritePaths:
+    - "/app/uploads/"
+    - "/var/www/html/uploads/"
+    - "/tmp/"
+    - "/app/cache/"
+  maxFileSize: 10485760  # 10MB
+
+secrets:
+  enabled: true
+  protectedPaths:
+    - "/var/run/secrets/kubernetes.io/serviceaccount/"
+    - "/etc/secret-volume/"
+    - "/app/secrets.txt"
+    - "/config/"
+  suspiciousAccessPatterns:
+    - "cat"
+    - "grep"
+    - "less"
+    - "more"
+    - "head"
+    - "tail"
+    - "cp"
+    - "mv"
+    - "wget"
+    - "curl"
+    - "nc"
+    - "ncat"

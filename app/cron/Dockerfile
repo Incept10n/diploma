@@ -9,6 +9,7 @@ WORKDIR /app
 # Копирование скрипта
 COPY cron.py /app/script.py
 RUN chmod +x /app/script.py
+RUN touch /app/test.sh
 
 # Копирование crontab файла
 COPY crontab /etc/cron.d/random-cron
