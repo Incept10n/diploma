@@ -25,3 +25,12 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
+        volumeMounts:
+          - name: test-secret
+            readOnly: true
+            mountPath: "/config/secret.txt"
+      volumes:
+        - name: test-secret
+          secret:
+            secretName: test-secret
+

@@ -142,21 +142,21 @@ fileMonitoring:
   enabled: true
   monitoringInterval: 10s
   forbiddenExtensions:
-    # - ".pl"
+    - ".pl"
     - ".sh"
-    # - ".php"
-    # - ".jsp"
-    # - ".asp"
-    # - ".exe"
-    # - ".dll"
-    # - ".so"
-    # - ".tmp"
-    # - ".bak"
+    - ".php"
+    - ".jsp"
+    - ".asp"
+    - ".exe"
+    - ".dll"
+    - ".so"
+    - ".tmp"
+    - ".bak"
   protectedPaths:
     - "/app"
-    # - "/var/www"
-    # - "/home"
-    # - "/opt"
+    - "/var/www"
+    - "/home"
+    - "/opt"
   allowedWritePaths:
     - "/app/uploads/"
     - "/var/www/html/uploads/"
