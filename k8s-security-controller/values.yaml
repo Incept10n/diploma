@@ -23,7 +23,7 @@ controller:
 
 # Falco integration
 falco:
-  enabled: false
+  enabled: true
   resources:
     limits:
       cpu: 1000m
@@ -33,9 +33,20 @@ falco:
       memory: 512Mi
   securityContext:
     privileged: true
-  podSecurityContext:
-    privileged: true
   customRules: {}
+  falco:
+    json_output: true
+    json_include_output_property: true
+    json_include_output_fields_property: true
+    http_output:
+      enabled: true
+      url: "http://k8s-security-controller-falcosidekick.si.svc.cluster.local:2801"
+  falcosidekick:
+    enabled: true
+    config:
+      webhook:
+        address: "http://k8s-security-controller-agent.si.svc.cluster.local:2801/falco/event"
+        method: "POST"
 
 # Sysdig integration
 sysdig:
@@ -139,7 +150,7 @@ cron:
     - "/usr/bin/logrotate"
 
 fileMonitoring:
-  enabled: true
+  enabled: false
   monitoringInterval: 10s
   forbiddenExtensions:
     - ".pl"
@@ -165,7 +176,7 @@ fileMonitoring:
   maxFileSize: 10485760  # 10MB
 
 secrets:
-  enabled: true
+  enabled: false
   protectedPaths:
     - "/var/run/secrets/kubernetes.io/serviceaccount/"
     - "/etc/secret-volume/"
@@ -184,3 +195,11 @@ secrets:
     - "curl"
     - "nc"
     - "ncat"
+
+falcoWebhook:
+  enabled: true
+  listenAddr: ":2801"
+  secret: "change-me" # может вынести в секрет?
+  actions:
+    deletePod: true
+    terminateProcess: false

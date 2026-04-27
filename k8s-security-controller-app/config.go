@@ -13,7 +13,18 @@ type SecurityConfig struct {
 	Cron           CronConfig           `yaml:"cron"`
 	FileMonitoring FileMonitoringConfig `yaml:"fileMonitoring"`
 	Secrets        SecretsConfig        `yaml:"secrets"`
+	FalcoWebhook   FalcoWebhookConfig   `yaml:"falcoWebhook"`
 	Logging        LoggingConfig        `yaml:"logging"`
+}
+
+type FalcoWebhookConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	ListenAddr string `yaml:"listenAddr"`
+	Secret     string `yaml:"secret"`
+	Actions    struct {
+		DeletePod        bool `yaml:"deletePod"`
+		TerminateProcess bool `yaml:"terminateProcess"`
+	} `yaml:"actions"`
 }
 
 type CronConfig struct {
@@ -53,8 +64,6 @@ func loadSecurityConfig() (*SecurityConfig, error) {
 		log.Println("Trying to load the security-config.yaml")
 		var config SecurityConfig
 		if err := yaml.Unmarshal(data, &config); err == nil {
-			log.Println("Error unmarshling")
-			// Конвертируем строку времени в time.Duration
 			return &config, nil
 		}
 	}

@@ -52,6 +52,10 @@ spec:
             requests:
               cpu: 50m
               memory: 64Mi
+          ports:
+            - name: falco-webhook
+              containerPort: 2801
+              protocol: TCP
       volumes:
         - name: var-run
           hostPath:

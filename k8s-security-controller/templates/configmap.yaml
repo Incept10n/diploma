@@ -51,3 +51,12 @@ data:
 {{- range .Values.secrets.suspiciousAccessPatterns }}
         - "{{ . }}"
 {{- end }}
+    falcoWebhook:
+      enabled: {{ .Values.falcoWebhook.enabled }}
+      listenAddr: {{ .Values.falcoWebhook.listenAddr | quote }}
+      secret: {{ .Values.falcoWebhook.secret | quote }}
+      actions:
+        deletePod: {{ .Values.falcoWebhook.actions.deletePod }}
+        terminateProcess: {{ .Values.falcoWebhook.actions.terminateProcess }}
+
+

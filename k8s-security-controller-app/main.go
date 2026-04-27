@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -30,19 +29,16 @@ func main() {
 
 	log.Printf("Starting in %s mode", mode)
 
-	// Создаем конфигурацию для подключения к Kubernetes
 	config, err := buildConfig(master, kubeconfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Создаем клиент Kubernetes
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Загружаем конфигурацию безопасности
 	log.Println("Next step - loading the security config")
 	securityConfig, err := loadSecurityConfig()
 	if err != nil {
@@ -50,7 +46,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Создаем контроллер cron
 	if securityConfig.Cron.Enabled {
 		cronController = NewCronController(clientset, config, securityConfig)
 	}
@@ -59,11 +54,11 @@ func main() {
 		fileMonitor = NewFileMonitor(clientset, config, securityConfig)
 	}
 
-	// Запускаем контроллер
+	// Start
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Обработка сигналов завершения
+	// Termination signals
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -72,11 +67,9 @@ func main() {
 		cancel()
 	}()
 
-	log.Println("Starting Kubernetes Security Controller - Cron Monitor")
-	log.Printf("Monitoring interval: %v", securityConfig.Cron.MonitoringInterval)
+	log.Println("Starting Kubernetes Security Controller")
 
 	if mode == "agent" {
-		// Агент мониторит только поды на своей ноде
 		nodeName := os.Getenv("NODE_NAME")
 		if nodeName == "" {
 			log.Fatal("NODE_NAME environment variable is required for agent mode")
@@ -85,28 +78,49 @@ func main() {
 
 		var wg sync.WaitGroup
 
+		// 1) Cron monitoring
 		if securityConfig.Cron.Enabled {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
+				log.Printf("Cron monitor enabled. Interval: %v", securityConfig.Cron.MonitoringInterval)
 				cronController.StartAgentMonitoring(ctx, nodeName)
 			}()
 		}
-		// if securityConfig.Cron.Enabled {
-		// 	cronController.StartAgentMonitoring(ctx, nodeName)
-		// }
+
+		// 2) File + secrets monitoring
 		if securityConfig.FileMonitoring.Enabled || securityConfig.Secrets.Enabled {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
+				log.Printf("File/Secrets monitor enabled. File interval: %v", securityConfig.FileMonitoring.MonitoringInterval)
 				fileMonitor.StartAgentMonitoring(ctx, nodeName)
 			}()
 		}
 
+		if securityConfig.FalcoWebhook.Enabled {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				addr := securityConfig.FalcoWebhook.ListenAddr
+				if addr == "" {
+					addr = ":2801"
+				}
+
+				secret := securityConfig.FalcoWebhook.Secret
+				server := NewFalcoWebhookServer(clientset, config, secret)
+
+				log.Printf("Falco webhook enabled. Listening on %s", addr)
+				server.Start(ctx, addr)
+			}()
+		} else {
+			log.Printf("Falco webhook disabled in config")
+		}
+
 		wg.Wait()
 	} else {
-		os.Exit(1)
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		log.Fatal("controller mode is not implemented yet")
 	}
 }
 
