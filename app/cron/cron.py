@@ -3,7 +3,6 @@ import random
 import logging
 from datetime import datetime
 
-# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(message)s',

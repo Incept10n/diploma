@@ -14,13 +14,6 @@ controller:
       cpu: 100m
       memory: 128Mi
   
-  securityProfiles:
-    rceProtection: true
-    miningProtection: true
-    privilegeEscalation: true
-    cronProtection: true
-    secretsProtection: true
-
 # Falco integration
 falco:
   enabled: true
@@ -97,33 +90,7 @@ kube-bench:
       cpu: 100m
       memory: 128Mi
 
-monitoring:
-  enabled: true
-  logLevel: info
-
-autoResponse:
-  enabled: true
-  actions:
-    terminateProcess: true
-    isolateNetwork: true
     killContainer: false
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
 
 cron:
   enabled: false
@@ -175,31 +142,9 @@ fileMonitoring:
     - "/app/cache/"
   maxFileSize: 10485760  # 10MB
 
-secrets:
-  enabled: false
-  protectedPaths:
-    - "/var/run/secrets/kubernetes.io/serviceaccount/"
-    - "/etc/secret-volume/"
-    - "/app/secrets.txt"
-    - "/config/"
-  suspiciousAccessPatterns:
-    - "cat"
-    - "grep"
-    - "less"
-    - "more"
-    - "head"
-    - "tail"
-    - "cp"
-    - "mv"
-    - "wget"
-    - "curl"
-    - "nc"
-    - "ncat"
-
 falcoWebhook:
   enabled: true
   listenAddr: ":2801"
-  secret: "change-me" # может вынести в секрет?
   actions:
     deletePod: true
     terminateProcess: false

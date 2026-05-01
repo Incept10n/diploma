@@ -7,7 +7,6 @@ ENV GO111MODULE=on
 
 COPY go.mod go.sum ./
 
-# Принудительный вывод с -x и отключением кэша
 RUN set -x && \
     echo "=== Starting go mod download at $(date) ===" && \
     go mod download -x && \

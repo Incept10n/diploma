@@ -54,11 +54,9 @@ func main() {
 		fileMonitor = NewFileMonitor(clientset, config, securityConfig)
 	}
 
-	// Start
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Termination signals
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -78,7 +76,6 @@ func main() {
 
 		var wg sync.WaitGroup
 
-		// 1) Cron monitoring
 		if securityConfig.Cron.Enabled {
 			wg.Add(1)
 			go func() {
@@ -88,7 +85,6 @@ func main() {
 			}()
 		}
 
-		// 2) File + secrets monitoring
 		if securityConfig.FileMonitoring.Enabled || securityConfig.Secrets.Enabled {
 			wg.Add(1)
 			go func() {

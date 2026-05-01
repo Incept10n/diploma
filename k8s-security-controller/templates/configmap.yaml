@@ -41,16 +41,6 @@ data:
 {{- end }}
       maxFileSize: {{ .Values.fileMonitoring.maxFileSize }}
     # Secret monitor confg
-    secrets:
-      enabled: {{ .Values.secrets.enabled }}
-      protectedPaths:
-{{- range .Values.secrets.protectedPaths }}
-        - "{{ . }}"
-{{- end }}
-      suspiciousAccessPatterns:
-{{- range .Values.secrets.suspiciousAccessPatterns }}
-        - "{{ . }}"
-{{- end }}
     falcoWebhook:
       enabled: {{ .Values.falcoWebhook.enabled }}
       listenAddr: {{ .Values.falcoWebhook.listenAddr | quote }}

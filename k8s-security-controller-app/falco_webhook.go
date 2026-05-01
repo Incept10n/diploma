@@ -17,7 +17,7 @@ import (
 type FalcoWebhookServer struct {
 	clientset *kubernetes.Clientset
 	restCfg   *rest.Config
-	secret    string // простой shared secret
+	secret    string
 }
 
 func NewFalcoWebhookServer(cs *kubernetes.Clientset, cfg *rest.Config, secret string) *FalcoWebhookServer {
@@ -52,7 +52,7 @@ func (s *FalcoWebhookServer) handleFalcoEvent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1MB limit
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
 		w.WriteHeader(400)
 		return
@@ -69,8 +69,6 @@ func (s *FalcoWebhookServer) handleFalcoEvent(w http.ResponseWriter, r *http.Req
 	ns, pod, container, rule := extractK8s(evt)
 	log.Printf("Falco event received: rule=%q ns=%q pod=%q container=%q", rule, ns, pod, container)
 
-	// Здесь выбираем реакцию. Для начала — удалить pod.
-	// (можно заменить на kill внутри контейнера)
 	if ns != "" && pod != "" {
 		if err := s.clientset.CoreV1().Pods(ns).Delete(r.Context(), pod, *deleteOpts()); err != nil {
 			log.Printf("falco remediation: failed to delete pod %s/%s: %v", ns, pod, err)
@@ -84,21 +82,17 @@ func (s *FalcoWebhookServer) handleFalcoEvent(w http.ResponseWriter, r *http.Req
 }
 
 func extractK8s(evt map[string]any) (ns, pod, container, rule string) {
-	// Пытаемся достать rule
 	rule, _ = evt["rule"].(string)
 	if rule == "" {
-		rule, _ = evt["ruleName"].(string) // иногда иначе
+		rule, _ = evt["ruleName"].(string)
 	}
 
-	// Часто Falco кладет поля плоско: "k8s.ns.name", "k8s.pod.name"
 	ns = getString(evt, "k8s.ns.name", "output_fields.k8s.ns.name", "namespace")
 	pod = getString(evt, "k8s.pod.name", "output_fields.k8s.pod.name", "pod")
 	container = getString(evt, "container.name", "output_fields.container.name", "container")
 
-	// Иногда ns/pod может быть внутри "output" как строка — можно допарсить regex-ом при необходимости
 	if ns == "" || pod == "" {
 		if out, ok := evt["output"].(string); ok {
-			// примитивный fallback: ищем "k8s.ns.name=<...>" и "k8s.pod.name=<...>"
 			ns = fallbackFind(out, "k8s.ns.name=")
 			pod = fallbackFind(out, "k8s.pod.name=")
 		}
@@ -113,13 +107,10 @@ func getString(evt map[string]any, keys ...string) string {
 			if s, ok := v.(string); ok && s != "" {
 				return s
 			}
-			// поддержка вложенности вида output_fields: {...}
 			if strings.Contains(k, ".") {
-				// уже плоский ключ — пропускаем
 				continue
 			}
 		}
-		// пробуем разобрать "output_fields.xxx"
 		if strings.HasPrefix(k, "output_fields.") {
 			if of, ok := evt["output_fields"].(map[string]any); ok {
 				sub := strings.TrimPrefix(k, "output_fields.")
@@ -140,7 +131,6 @@ func fallbackFind(out, prefix string) string {
 		return ""
 	}
 	s := out[i+len(prefix):]
-	// до пробела/закрывающей скобки
 	for j := 0; j < len(s); j++ {
 		if s[j] == ' ' || s[j] == ')' || s[j] == ',' {
 			return s[:j]

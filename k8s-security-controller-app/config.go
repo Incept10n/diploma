@@ -55,7 +55,6 @@ type LoggingConfig struct {
 }
 
 func loadSecurityConfig() (*SecurityConfig, error) {
-	// Пытаемся загрузить из ConfigMap (внутри контейнера)
 	log.Println("Setting the path for security-config.yaml")
 	configPath := "/config/security-config.yaml"
 	var data []byte
